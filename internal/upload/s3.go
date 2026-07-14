@@ -1,6 +1,7 @@
 package upload
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -24,7 +25,8 @@ type Generator interface {
 }
 type S3 struct {
 	bucket, publicBase string
-	client             *s3.PresignClient
+	client             *s3.Client
+	presign            *s3.PresignClient
 }
 
 func New(ctx context.Context, region, bucket, publicBase, endpoint string, usePathStyle bool) (*S3, error) {
@@ -38,7 +40,7 @@ func New(ctx context.Context, region, bucket, publicBase, endpoint string, usePa
 			options.BaseEndpoint = aws.String(endpoint)
 		}
 	})
-	return &S3{bucket: bucket, publicBase: strings.TrimRight(publicBase, "/"), client: s3.NewPresignClient(client)}, nil
+	return &S3{bucket: bucket, publicBase: strings.TrimRight(publicBase, "/"), client: client, presign: s3.NewPresignClient(client)}, nil
 }
 func (s *S3) Generate(ctx context.Context, userID, filename, contentType string) (Result, error) {
 	extensions := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
@@ -54,9 +56,25 @@ func (s *S3) Generate(ctx context.Context, userID, filename, contentType string)
 		return Result{}, errors.New("filename extension does not match content type")
 	}
 	key := fmt.Sprintf("products/%s/%s%s", userID, uuid.NewString(), ext)
-	presigned, err := s.client.PresignPutObject(ctx, &s3.PutObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key), ContentType: aws.String(contentType)}, func(o *s3.PresignOptions) { o.Expires = 15 * time.Minute })
+	presigned, err := s.presign.PresignPutObject(ctx, &s3.PutObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key), ContentType: aws.String(contentType)}, func(o *s3.PresignOptions) { o.Expires = 15 * time.Minute })
 	if err != nil {
 		return Result{}, err
 	}
 	return Result{UploadURL: presigned.URL, ImageKey: key, ImageURL: s.publicBase + "/" + key}, nil
+}
+
+// PutDemoObject stores an immutable bundled demo image if it is not already
+// present. It uses the same S3 client configuration as customer uploads, so it
+// works with AWS S3 and local S3-compatible stores such as MinIO.
+func (s *S3) PutDemoObject(ctx context.Context, key string, body []byte) error {
+	if _, err := s.client.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key)}); err == nil {
+		return nil
+	}
+	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.bucket),
+		Key:         aws.String(key),
+		Body:        bytes.NewReader(body),
+		ContentType: aws.String("image/jpeg"),
+	})
+	return err
 }

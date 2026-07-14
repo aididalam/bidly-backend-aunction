@@ -36,14 +36,14 @@ func NewMySQL(db *sql.DB) *MySQL { return &MySQL{db: db} }
 
 func (r *MySQL) CreateProduct(ctx context.Context, p model.Product) (model.Product, error) {
 	p.ID = uuid.NewString()
-	_, err := r.db.ExecContext(ctx, `INSERT INTO products (id,seller_id,title,description,image_key,starting_price,current_price,auction_end_at,status) VALUES (?,?,?,?,?,?,?,?, 'ACTIVE')`, p.ID, p.SellerID, p.Title, p.Description, p.ImageKey, p.StartingPrice.String(), p.StartingPrice.String(), p.AuctionEndAt.UTC())
+	_, err := r.db.ExecContext(ctx, `INSERT INTO products (id,seller_id,title,description,image_key,currency,starting_price,current_price,auction_end_at,status) VALUES (?,?,?,?,?,?,?,?,?, 'ACTIVE')`, p.ID, p.SellerID, p.Title, p.Description, p.ImageKey, p.Currency, p.StartingPrice.String(), p.StartingPrice.String(), p.AuctionEndAt.UTC())
 	if err != nil {
 		return model.Product{}, err
 	}
 	return r.GetProduct(ctx, p.ID)
 }
 
-const productColumns = `id,seller_id,title,description,image_key,starting_price,current_price,highest_bidder_id,auction_end_at,status,created_at,updated_at`
+const productColumns = `id,seller_id,title,description,image_key,currency,starting_price,current_price,highest_bidder_id,auction_end_at,status,created_at,updated_at`
 
 func (r *MySQL) ListActive(ctx context.Context, now time.Time) ([]model.Product, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT `+productColumns+` FROM products WHERE status='ACTIVE' AND auction_end_at > ? ORDER BY created_at DESC`, now.UTC())
@@ -88,7 +88,7 @@ func (r *MySQL) UpdateProduct(ctx context.Context, seller string, next model.Pro
 	if count != 0 {
 		return model.Product{}, ErrConflict
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE products SET title=?,description=?,image_key=?,starting_price=?,current_price=?,auction_end_at=? WHERE id=?`, next.Title, next.Description, next.ImageKey, next.StartingPrice.String(), next.StartingPrice.String(), next.AuctionEndAt.UTC(), next.ID)
+	_, err = tx.ExecContext(ctx, `UPDATE products SET title=?,description=?,image_key=?,currency=?,starting_price=?,current_price=?,auction_end_at=? WHERE id=?`, next.Title, next.Description, next.ImageKey, next.Currency, next.StartingPrice.String(), next.StartingPrice.String(), next.AuctionEndAt.UTC(), next.ID)
 	if err != nil {
 		return model.Product{}, err
 	}
@@ -236,7 +236,7 @@ func scanProduct(row scanner) (model.Product, error) {
 	var p model.Product
 	var start, current string
 	var highest sql.NullString
-	err := row.Scan(&p.ID, &p.SellerID, &p.Title, &p.Description, &p.ImageKey, &start, &current, &highest, &p.AuctionEndAt, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+	err := row.Scan(&p.ID, &p.SellerID, &p.Title, &p.Description, &p.ImageKey, &p.Currency, &start, &current, &highest, &p.AuctionEndAt, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return p, ErrNotFound
 	}

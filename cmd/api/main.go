@@ -2,6 +2,7 @@ package main
 
 import (
 	"auction/auction/internal/config"
+	"auction/auction/internal/demo"
 	"auction/auction/internal/handler"
 	"auction/auction/internal/middleware"
 	"auction/auction/internal/repository"
@@ -51,6 +52,10 @@ func main() {
 	uploads, err := upload.New(startup, cfg.AWSRegion, cfg.S3Bucket, cfg.S3PublicBaseURL, cfg.S3Endpoint, cfg.S3UsePathStyle)
 	if err != nil {
 		logger.Error("initialize S3", "error", err)
+		os.Exit(1)
+	}
+	if err = demo.Seed(startup, db, uploads); err != nil {
+		logger.Error("seed demo marketplace", "error", err)
 		os.Exit(1)
 	}
 	svc := service.New(repository.NewMySQL(db), uploads)

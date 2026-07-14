@@ -22,6 +22,7 @@ type ProductInput struct {
 	Title         string      `json:"title"`
 	Description   string      `json:"description"`
 	ImageKey      string      `json:"image_key"`
+	Currency      string      `json:"currency"`
 	StartingPrice model.Money `json:"starting_price"`
 	AuctionEndAt  time.Time   `json:"auction_end_at"`
 }
@@ -38,7 +39,7 @@ func (s *Service) Create(ctx context.Context, seller string, in ProductInput) (m
 	if !validProduct(seller, &in, s.now()) {
 		return model.Product{}, ErrInvalid
 	}
-	return s.repo.CreateProduct(ctx, model.Product{SellerID: seller, Title: in.Title, Description: in.Description, ImageKey: in.ImageKey, StartingPrice: in.StartingPrice, AuctionEndAt: in.AuctionEndAt})
+	return s.repo.CreateProduct(ctx, model.Product{SellerID: seller, Title: in.Title, Description: in.Description, ImageKey: in.ImageKey, Currency: in.Currency, StartingPrice: in.StartingPrice, AuctionEndAt: in.AuctionEndAt})
 }
 func (s *Service) List(ctx context.Context) ([]model.Product, error) {
 	return s.repo.ListActive(ctx, s.now())
@@ -56,7 +57,7 @@ func (s *Service) Update(ctx context.Context, id, seller string, in ProductInput
 	if uuid.Validate(id) != nil || !validProduct(seller, &in, s.now()) {
 		return model.Product{}, ErrInvalid
 	}
-	return s.repo.UpdateProduct(ctx, seller, model.Product{ID: id, Title: in.Title, Description: in.Description, ImageKey: in.ImageKey, StartingPrice: in.StartingPrice, AuctionEndAt: in.AuctionEndAt}, s.now())
+	return s.repo.UpdateProduct(ctx, seller, model.Product{ID: id, Title: in.Title, Description: in.Description, ImageKey: in.ImageKey, Currency: in.Currency, StartingPrice: in.StartingPrice, AuctionEndAt: in.AuctionEndAt}, s.now())
 }
 func (s *Service) Cancel(ctx context.Context, id, seller string) error {
 	if uuid.Validate(id) != nil {
@@ -106,5 +107,18 @@ func validProduct(seller string, in *ProductInput, now time.Time) bool {
 	in.Title = strings.TrimSpace(in.Title)
 	in.Description = strings.TrimSpace(in.Description)
 	in.ImageKey = strings.TrimSpace(in.ImageKey)
-	return in.Title != "" && utf8.RuneCountInString(in.Title) <= 200 && in.Description != "" && utf8.RuneCountInString(in.Description) <= maxDescriptionRunes && strings.HasPrefix(in.ImageKey, "products/"+seller+"/") && in.StartingPrice > 0 && in.StartingPrice <= 999999999999 && in.AuctionEndAt.After(now)
+	in.Currency = strings.ToUpper(strings.TrimSpace(in.Currency))
+	return in.Title != "" && utf8.RuneCountInString(in.Title) <= 200 && in.Description != "" && utf8.RuneCountInString(in.Description) <= maxDescriptionRunes && strings.HasPrefix(in.ImageKey, "products/"+seller+"/") && validCurrency(in.Currency) && in.StartingPrice > 0 && in.StartingPrice <= 999999999999 && in.AuctionEndAt.After(now)
+}
+
+func validCurrency(value string) bool {
+	if len(value) != 3 {
+		return false
+	}
+	for _, character := range value {
+		if character < 'A' || character > 'Z' {
+			return false
+		}
+	}
+	return true
 }

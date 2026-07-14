@@ -14,6 +14,7 @@ func TestValidProductDescriptionLimit(t *testing.T) {
 		Title:         "Desk lamp",
 		Description:   strings.Repeat("a", maxDescriptionRunes),
 		ImageKey:      "products/" + seller + "/image.jpg",
+		Currency:      "usd",
 		StartingPrice: model.Money(100),
 		AuctionEndAt:  time.Now().Add(time.Hour),
 	}
@@ -23,5 +24,10 @@ func TestValidProductDescriptionLimit(t *testing.T) {
 	input.Description += "a"
 	if validProduct(seller, &input, time.Now()) {
 		t.Fatal("expected description above the limit to be invalid")
+	}
+	input.Description = "Short description"
+	input.Currency = "US"
+	if validProduct(seller, &input, time.Now()) {
+		t.Fatal("expected invalid currency to be rejected")
 	}
 }

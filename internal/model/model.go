@@ -65,6 +65,7 @@ type Product struct {
 	Title           string    `json:"title"`
 	Description     string    `json:"description"`
 	ImageKey        string    `json:"image_key"`
+	Currency        string    `json:"currency"`
 	StartingPrice   Money     `json:"starting_price"`
 	CurrentPrice    Money     `json:"current_price"`
 	HighestBidderID *string   `json:"highest_bidder_id"`
