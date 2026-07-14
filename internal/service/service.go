@@ -16,6 +16,8 @@ import (
 
 var ErrInvalid = errors.New("invalid input")
 
+const maxDescriptionRunes = 1000
+
 type ProductInput struct {
 	Title         string      `json:"title"`
 	Description   string      `json:"description"`
@@ -104,5 +106,5 @@ func validProduct(seller string, in *ProductInput, now time.Time) bool {
 	in.Title = strings.TrimSpace(in.Title)
 	in.Description = strings.TrimSpace(in.Description)
 	in.ImageKey = strings.TrimSpace(in.ImageKey)
-	return in.Title != "" && utf8.RuneCountInString(in.Title) <= 200 && in.Description != "" && len(in.Description) <= 10000 && strings.HasPrefix(in.ImageKey, "products/"+seller+"/") && in.StartingPrice > 0 && in.StartingPrice <= 999999999999 && in.AuctionEndAt.After(now)
+	return in.Title != "" && utf8.RuneCountInString(in.Title) <= 200 && in.Description != "" && utf8.RuneCountInString(in.Description) <= maxDescriptionRunes && strings.HasPrefix(in.ImageKey, "products/"+seller+"/") && in.StartingPrice > 0 && in.StartingPrice <= 999999999999 && in.AuctionEndAt.After(now)
 }
