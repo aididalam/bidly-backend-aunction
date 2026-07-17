@@ -17,6 +17,7 @@ type Handler struct{ service *service.Service }
 func New(s *service.Service, auth *middleware.Auth) http.Handler {
 	h := &Handler{service: s}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", health)
 	mux.HandleFunc("GET /api/products", h.list)
 	mux.Handle("POST /api/products", auth.Protect(http.HandlerFunc(h.create)))
 	mux.HandleFunc("GET /api/products/{product_id}", h.get)
@@ -29,6 +30,7 @@ func New(s *service.Service, auth *middleware.Auth) http.Handler {
 	mux.Handle("POST /api/uploads/presigned-url", auth.Protect(http.HandlerFunc(h.upload)))
 	return mux
 }
+func health(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	var in service.ProductInput
 	if decode(w, r, &in) != nil {
